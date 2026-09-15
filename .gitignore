@@ -1,0 +1,14 @@
+# Output train (checkpoint nặng — push lên HF Hub thay vì commit)
+/outputs/*
+!/outputs/.gitkeep
+
+# Staging (chỉ là symlink tới data thô ở repo khác)
+/staging/
+
+# Python
+__pycache__/
+*.pyc
+
+# Train logs
+wandb/
+*.log
