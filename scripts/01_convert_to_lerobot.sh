@@ -25,14 +25,8 @@ cat <<EOF
 ==> Convert -> LeRobot
     raw-dir   : $STAGING_DIR
     repo-id   : $REPO_ID   (-> ~/.cache/huggingface/lerobot/$REPO_ID)
-    robot_type: $ROBOT_TYPE
+    robot_type: $ROBOT_TYPE  (3 cam: color_0->cam_left_high, color_1->cam_left_wrist, color_2->cam_right_wrist)
     env       : $CONDA_ENV
-
-⚠  MÌN CAMERA: robot_type '$ROBOT_TYPE' hiện map 4 camera (color_0..3), map color_1->cam_right_high.
-   Data thô chỉ có 3 camera (color_0=head, color_1=cổ tay TRÁI, color_2=cổ tay PHẢI).
-   Hãy xác minh/sửa camera_to_image_key trong:
-     $UNITREE_LEROBOT_DIR/unitree_lerobot/utils/constants.py
-   TRƯỚC khi tin tưởng dataset đầu ra. Xem docs/dataset.md.
 EOF
 
 CMD=(python "$CONVERT_SCRIPT"

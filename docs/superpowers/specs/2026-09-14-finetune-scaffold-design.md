@@ -57,15 +57,16 @@ mở nắp), các bản `pick_bottle-test1/2/3` (1-2 ep lẻ).
 **Phần cứng:** RTX 4070 Ti Super 16GB (đủ train ACT), i7-14700K, 31GB RAM, **94GB đĩa trống** (ràng buộc
 thật; conda envs đã chiếm ~63GB, HF cache ~13GB).
 
-## 4. Rủi ro / "mìn" đã phát hiện (phải ghi rõ, không im lặng)
+## 4. Chủ ý thiết kế & rủi ro (đã xác minh lại 2026-09-15)
 
-1. **Camera mapping sai trong `Unitree_G1_Inspire_3Cam`**: data thô có 3 cam (`color_0/1/2`) nhưng config
-   trong `unitree_lerobot/.../constants.py` khai báo 4 cam và map `color_1→cam_right_high` (sai — thực
-   tế `color_1` là cổ tay trái). Cần xác minh/sửa mapping ở repo `unitree_lerobot` **trước khi convert
-   thật**. Repo này KHÔNG tự sửa constants.py — chỉ cảnh báo và ghi vào docs.
-2. **Khớp `L_ring` (ngón áp út tay trái) luôn ≈ 0.000** trên dữ liệu hiện có.
-3. **Head cam (`color_0`) thỉnh thoảng đứng hình** (frame lặp y hệt liên tiếp).
-4. **Đa dạng vị trí vật thể còn ít** — khi thu thêm nên rải vị trí chai/vòng.
+- **Tay TRÁI đứng yên là CHỦ Ý** (không phải lỗi): tay trái giữ pose cố định để wrist-cam trái nhìn cố
+  định xuống bàn; tay phải thao tác chai. Nên `left_ee` (idx 14-19) phương sai ≈ 0 là bình thường —
+  `check_dataset.py` báo info, chỉ coi cột NGOÀI tay trái đứng yên mới là cảnh báo.
+- **Camera mapping ĐÃ ĐÚNG** (đã xác minh): `G1_INSPIRE_3CAM_CONFIG` map 3 cam `color_0→cam_left_high`
+  (head), `color_1→cam_left_wrist`, `color_2→cam_right_wrist`, khớp dataset đã convert. (Ghi chú "mìn
+  4-cam" trước đó là NHẦM với một config Dex1 khác trong cùng file — đã bỏ.)
+- **Rủi ro thật còn lại**: head cam (`color_0`) đôi khi drop/đứng frame (nhẹ <20% chấp nhận được, ≥20%
+  nên cắt); và đa dạng vị trí vật thể còn ít (khi thu thêm nên rải vị trí chai/vòng).
 
 ## 5. Kiến trúc & luồng
 
@@ -131,14 +132,15 @@ thiếu. Không copy (tiết kiệm 94GB đĩa).
 - **Cảnh báo** (không tự sửa):
   1. Cột state/action nào có phương sai ≈ 0 xuyên suốt (bắt lỗi `L_ring`=0 và tương tự).
   2. Head cam (`color_0`) đứng hình: đếm cặp frame liên tiếp trùng byte-hash quá ngưỡng.
-  3. Số camera/episode ≠ 3, hoặc thiếu `color_3` mà config lại map 4 cam (cảnh báo mìn #1).
+  3. Số camera/episode ≠ 3.
+  Cột `left_ee` (tay trái, idx 14-19) đứng yên báo ở mức info (chủ ý giữ wrist-cam), không tính là lỗi.
 - Exit code khác 0 nếu có cảnh báo nghiêm trọng → có thể dùng làm cổng chặn trong `01_convert`.
 - Chỉ phụ thuộc thư viện chuẩn + `numpy` (không cần import lerobot → chạy được cả ngoài env `tv`).
 
 ### 7.4 `scripts/01_convert_to_lerobot.sh`
 Kích hoạt env `tv`, chạy `convert_unitree_json_to_lerobot.py --raw-dir staging/... --repo-id $REPO_ID
---robot_type $ROBOT_TYPE` (không `--push_to_hub` — giữ local). In cảnh báo về mìn camera mapping trước
-khi chạy, yêu cầu xác nhận. Có cờ dry-run in lệnh mà không chạy.
+--robot_type $ROBOT_TYPE` (không `--push_to_hub` — giữ local). Yêu cầu xác nhận trước khi chạy. Có cờ
+dry-run in lệnh mà không chạy.
 
 ### 7.5 `scripts/02_train_act.sh`
 `cd $UNITREE_LEROBOT_DIR/unitree_lerobot/lerobot` rồi `lerobot_train.py --dataset.repo_id=$REPO_ID

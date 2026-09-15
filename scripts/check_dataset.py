@@ -37,6 +37,12 @@ STATE_PARTS = [
 ]
 ZERO_VAR_EPS = 1e-8  # ngưỡng coi một cột là "không đổi"
 
+# Tay TRÁI (arm idx 0-6 + ee idx 14-19) được CỐ TÌNH giữ yên trong task này để wrist-cam
+# trái nhìn cố định xuống bàn. Nên cột tay trái đứng yên là BÌNH THƯỜNG (chỉ báo info),
+# không phải lỗi. Chỉ cột NGOÀI vùng này đứng yên mới là bất thường (tay phải thao tác).
+LEFT_STATIC_IDX = set(range(0, 7)) | set(range(14, 20))
+SEVERE_FROZEN_FRAC = 0.20  # đứng hình ở mức này trở lên mới coi là nghiêm trọng
+
 
 def column_labels() -> list[str]:
     labels: list[str] = []
@@ -145,9 +151,11 @@ def main() -> int:
     labels = column_labels()
     print(f"==> Soát {len(eps)} episode dưới {root}\n")
 
-    zero_col_counter: dict[int, int] = {}
+    left_zero_counter: dict[int, int] = {}   # tay trái đứng yên — bình thường (info)
+    other_zero_counter: dict[int, int] = {}  # cột khác đứng yên — bất thường (cảnh báo)
     bad_cam = 0
-    frozen_eps: list[str] = []
+    frozen_mild: list[str] = []
+    frozen_severe: list[str] = []
     total_frames = 0
 
     for ep in eps:
@@ -162,11 +170,17 @@ def main() -> int:
             bad_cam += 1
             flags.append(f"CAM={r['n_cam']}(≠3)")
         for c in r["zero_cols"]:
-            zero_col_counter[c] = zero_col_counter.get(c, 0) + 1
+            if c in LEFT_STATIC_IDX:
+                left_zero_counter[c] = left_zero_counter.get(c, 0) + 1
+            else:
+                other_zero_counter[c] = other_zero_counter.get(c, 0) + 1
+                flags.append(f"KẸT[{c}]")
         frac = r["frozen_pairs"] / max(1, r["n_color0"] - 1)
-        if frac >= args.frozen_frac:
-            frozen_eps.append(ep.name)
-            flags.append(f"FROZEN={frac:.0%}")
+        if frac >= SEVERE_FROZEN_FRAC:
+            frozen_severe.append(ep.name)
+            flags.append(f"FROZEN={frac:.0%}!")
+        elif frac >= args.frozen_frac:
+            frozen_mild.append(ep.name)
         tag = ("  ⚠ " + " ".join(flags)) if flags else ""
         rel = ep.relative_to(root) if root in ep.parents or root == ep.parent else ep.name
         print(f"  {str(rel):40} {r['n_frames']:>4}f  cam={r['n_cam']}  goal={r['goal']}{tag}")
@@ -174,28 +188,34 @@ def main() -> int:
     print("\n" + "=" * 60)
     print(f"Tổng: {len(eps)} episode, {total_frames} frame")
 
+    # --- Thông tin (không phải lỗi) ---
+    if left_zero_counter:
+        print("\nℹ Tay TRÁI đứng yên (chủ ý — giữ wrist-cam nhìn bàn), không phải lỗi:")
+        for c in sorted(left_zero_counter):
+            print(f"    idx {c:>2} {labels[c]:24} đứng yên ở {left_zero_counter[c]}/{len(eps)} episode")
+    if frozen_mild:
+        print(f"\nℹ {len(frozen_mild)} episode có head-cam trùng frame nhẹ (<{SEVERE_FROZEN_FRAC:.0%}) — "
+              "drop frame lẻ tẻ, thường chấp nhận được.")
+
+    # --- Cảnh báo nghiêm trọng (chặn convert) ---
     warn = False
-    if zero_col_counter:
+    if other_zero_counter:
         warn = True
-        print("\n⚠ Cột state KẸT (phương sai ~0) — khả năng khớp hỏng (tên khớp chỉ là suy đoán; index mới chuẩn):")
-        for c in sorted(zero_col_counter):
-            print(f"    idx {c:>2} {labels[c]:24} kẹt ở {zero_col_counter[c]}/{len(eps)} episode")
+        print("\n⚠ Cột state KẸT NGOÀI tay trái (bất thường — tay phải/khớp thao tác đáng lẽ phải động):")
+        for c in sorted(other_zero_counter):
+            print(f"    idx {c:>2} {labels[c]:24} kẹt ở {other_zero_counter[c]}/{len(eps)} episode")
     if bad_cam:
         warn = True
         print(f"\n⚠ {bad_cam}/{len(eps)} episode có số camera ≠ 3.")
-    if frozen_eps:
+    if frozen_severe:
         warn = True
-        print(f"\n⚠ {len(frozen_eps)} episode nghi head-cam đứng hình: {', '.join(frozen_eps[:10])}"
-              + (" ..." if len(frozen_eps) > 10 else ""))
-
-    # Nhắc mìn camera-mapping (không phát hiện được từ data, nhưng luôn nhắc)
-    print("\nGHI NHỚ: robot_type 'Unitree_G1_Inspire_3Cam' map 4 camera (color_0..3) nhưng data chỉ có 3.")
-    print("         Xác minh mapping color_1 = cổ tay TRÁI trong constants.py trước khi convert.")
+        print(f"\n⚠ {len(frozen_severe)} episode head-cam đứng hình NẶNG (≥{SEVERE_FROZEN_FRAC:.0%}): "
+              f"{', '.join(frozen_severe[:10])}" + (" ..." if len(frozen_severe) > 10 else ""))
 
     if warn:
-        print("\n=> CÓ CẢNH BÁO. Xem lại / cắt episode lỗi (data_editor của teleop repo) trước khi convert.")
+        print("\n=> CÓ CẢNH BÁO NGHIÊM TRỌNG. Xem lại / cắt episode lỗi (data_editor của teleop repo) trước khi convert.")
         return 1
-    print("\n=> Data sạch (theo các kiểm tra tự động). Có thể convert.")
+    print("\n=> Data ổn (tay trái đứng yên là chủ ý; các cảnh báo còn lại chỉ ở mức info). Có thể convert.")
     return 0
 
 

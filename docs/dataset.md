@@ -31,21 +31,23 @@ cùng setup vật lý — đã kiểm tra bằng head-cam ở cả 3 buổi thu 
 
 Danh sách 5 bộ dùng được nằm ở biến `DATASETS` trong `config.env`.
 
-## Mìn đã biết (phải xử lý trước/khi convert)
+## Chủ ý thiết kế (KHÔNG phải lỗi)
 
-1. **Camera mapping sai trong `Unitree_G1_Inspire_3Cam`**
-   `unitree_lerobot/unitree_lerobot/utils/constants.py` khai báo config này với **4 camera** và map
-   `color_0→cam_left_high, color_1→cam_right_high, color_2→cam_left_wrist, color_3→cam_right_wrist`.
-   Nhưng data thô chỉ có **3 camera** (`color_0/1/2`) và `color_1` thực tế là **cổ tay trái**, không phải
-   `cam_right_high`. → Xác minh/sửa `camera_to_image_key` trong constants.py cho khớp 3 camera thật
-   **trước khi convert thật**. Repo này KHÔNG tự sửa file đó (ngoài phạm vi); `01_convert_to_lerobot.sh`
-   sẽ in cảnh báo này.
+- **Tay TRÁI cố tình giữ yên**: tay trái được giữ ở một pose cố định để **wrist-cam trái nhìn cố định
+  xuống bàn** (dùng như một camera bàn). Vì vậy các khớp ngón tay trái (`left_ee`, idx 14-19) có phương
+  sai ≈ 0 trong từng episode là **bình thường**. `check_dataset.py` báo nhóm này ở mức `info`, không coi
+  là lỗi. Tay PHẢI mới là tay thao tác chai — nếu khớp tay phải đứng yên thì đó mới là bất thường.
+- **Camera mapping đã đúng**: `G1_INSPIRE_3CAM_CONFIG` trong `unitree_lerobot/.../constants.py` map 3
+  camera: `color_0→cam_left_high` (head), `color_1→cam_left_wrist`, `color_2→cam_right_wrist` — khớp với
+  dataset `local/place_bottle_test1` đã convert. Không cần sửa. (Trước đó từng nhầm với một config Dex1
+  4-cam khác trong cùng file — đã xác minh lại.)
 
-2. **Khớp `L_ring` (ngón áp út tay trái) luôn ≈ 0.000** — `check_dataset.py` phát hiện qua phương sai cột.
+## Vấn đề thật cần chú ý
 
-3. **Head cam (`color_0`) thỉnh thoảng đứng hình** — `check_dataset.py` phát hiện qua hash frame trùng.
+1. **Head cam (`color_0`) đôi khi drop/đứng frame** — `check_dataset.py` phát hiện qua hash frame trùng.
+   Mức nhẹ (<20%) là drop lẻ tẻ, thường chấp nhận được; ≥20% mới coi là nặng và nên cắt episode đó.
 
-4. **Đa dạng vị trí vật thể còn ít** — khi thu thêm nên rải vị trí chai/vòng khắp vùng làm việc để ACT
+2. **Đa dạng vị trí vật thể còn ít** — khi thu thêm nên rải vị trí chai/vòng khắp vùng làm việc để ACT
    không overfit vào một chỗ.
 
 ## Thu thêm dữ liệu
@@ -58,5 +60,5 @@ Dùng repo teleop (không thuộc repo này):
 ## Định dạng LeRobot sau convert
 
 `~/.cache/huggingface/lerobot/local/pick_place_bottle` — LeRobot v3.0 (parquet + ảnh). `observation.state`
-và `action` shape `[26]`; camera key theo `camera_to_image_key` (xem mìn #1). Đây là đầu vào cho
-`02_train_act.sh`.
+và `action` shape `[26]`; 3 camera key: `cam_left_high` (head), `cam_left_wrist`, `cam_right_wrist`. Đây
+là đầu vào cho `02_train_act.sh`.

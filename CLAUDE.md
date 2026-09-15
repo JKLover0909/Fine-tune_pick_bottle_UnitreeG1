@@ -32,9 +32,13 @@ Workflow: `docs/workflow.md`. Data + known landmines: `docs/dataset.md`. Shared 
   does not).
 - One dataset already converted: `~/.cache/huggingface/lerobot/local/place_bottle_test1`.
 
-**Known landmine**: robot_type `Unitree_G1_Inspire_3Cam` in `unitree_lerobot/.../constants.py` declares 4
-cameras and maps `color_1→cam_right_high`, but raw data has 3 cameras and `color_1` is actually the LEFT
-wrist. Verify/fix that mapping before trusting a real conversion. Do not edit constants.py from here.
+**By design (not a fault):** the LEFT hand is held still on purpose so the left wrist-cam gives a fixed
+table view; the right hand manipulates the bottle. So zero-variance in left-hand joints (`left_ee`, state
+idx 14-19) is expected — `check_dataset.py` reports it as info, not a warning.
+
+**Camera mapping is correct** (verified): `G1_INSPIRE_3CAM_CONFIG` maps 3 cams — `color_0→cam_left_high`
+(head), `color_1→cam_left_wrist`, `color_2→cam_right_wrist` — matching the converted dataset. (An earlier
+note in this repo wrongly flagged a 4-cam mismatch; that was a different Dex1 config in the same file.)
 
 ## Goal
 

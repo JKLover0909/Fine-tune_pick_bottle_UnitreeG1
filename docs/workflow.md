@@ -12,7 +12,7 @@ scripts/00_stage_raw_data.sh
 # 2. Soát chất lượng data thô (L_ring=0, head-cam đứng hình, số camera)
 scripts/check_dataset.py staging
 
-# 3. Convert gộp -> LeRobot dataset  (đọc kỹ cảnh báo mìn camera trước!)
+# 3. Convert gộp -> LeRobot dataset
 scripts/01_convert_to_lerobot.sh --dry-run   # xem lệnh
 scripts/01_convert_to_lerobot.sh             # chạy thật
 

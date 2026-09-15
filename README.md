@@ -35,6 +35,5 @@ Chi tiết: [`docs/workflow.md`](docs/workflow.md) · Dữ liệu & các "mìn" 
 ## Lưu ý
 
 - **94GB đĩa trống** — checkpoint đẩy lên HF Hub rồi dọn local (`push_checkpoint_to_hub.sh`), không commit.
-- **Mìn camera mapping**: `Unitree_G1_Inspire_3Cam` trong `unitree_lerobot` map 4 camera nhưng data chỉ
-  có 3 — xác minh trước khi convert. Xem `docs/dataset.md`.
+- **Tay trái đứng yên là chủ ý** (giữ wrist-cam nhìn bàn) — không phải lỗi khớp. Xem `docs/dataset.md`.
 - Mỗi script `.sh` có `--dry-run` để xem lệnh trước khi chạy thật.
