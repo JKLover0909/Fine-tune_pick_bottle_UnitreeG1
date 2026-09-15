@@ -17,7 +17,11 @@ if [[ ! -f "$TRAIN_SCRIPT" ]]; then
   exit 1
 fi
 
-mkdir -p "$OUTPUT_DIR"
+# KHÔNG mkdir OUTPUT_DIR: lerobot từ chối nếu thư mục đã tồn tại (resume=False). Nó tự tạo.
+if [[ -e "$OUTPUT_DIR" ]]; then
+  echo "LỖI: $OUTPUT_DIR đã tồn tại. Đổi JOB_NAME/OUTPUT_DIR hoặc xoá thư mục cũ trước." >&2
+  [[ "$DRY_RUN" -eq 1 ]] || exit 1
+fi
 
 cat <<EOF
 ==> Train ACT (local, card 16GB)
