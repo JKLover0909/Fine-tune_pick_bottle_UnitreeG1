@@ -23,18 +23,20 @@ cat <<EOF
 ==> Train ACT (local, card 16GB)
     dataset  : $REPO_ID
     output   : $OUTPUT_DIR
-    batch    : $ACT_BATCH_SIZE   steps: $ACT_STEPS
-    env      : $CONDA_ENV
+    batch    : $ACT_BATCH_SIZE   steps: $ACT_STEPS   save_freq: $ACT_SAVE_FREQ
+    env      : $CONDA_ENV   video_backend: pyav
 EOF
 
 # lerobot_train.py phải chạy từ trong thư mục lerobot (đường dẫn tương đối tới src).
 CMD=(python "$TRAIN_SCRIPT"
   --dataset.repo_id="$REPO_ID"
+  --dataset.video_backend=pyav   # torchcodec lỗi với torch 2.3.0 (thiếu register_fake); pyav ổn
   --policy.type=act
   --policy.push_to_hub=false
   --policy.device=cuda
   --batch_size="$ACT_BATCH_SIZE"
   --steps="$ACT_STEPS"
+  --save_freq="$ACT_SAVE_FREQ"
   --output_dir="$OUTPUT_DIR"
   --job_name="$JOB_NAME")
 

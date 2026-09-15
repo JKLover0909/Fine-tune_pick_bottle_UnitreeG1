@@ -17,24 +17,48 @@ if [[ ! -d "$RAW_DATA_DIR" ]]; then
   exit 1
 fi
 
+# Dựng lại staging từ đầu để phản ánh đúng EXCLUDE_EPISODES hiện tại.
+rm -rf "$STAGING_DIR"
 mkdir -p "$STAGING_DIR"
 
+# Hàm kiểm tra một "dataset/episode" có nằm trong danh sách loại không.
+is_excluded() {
+  local key="$1"
+  for ex in "${EXCLUDE_EPISODES[@]:-}"; do
+    [[ "$key" == "$ex" ]] && return 0
+  done
+  return 1
+}
+
 missing=0
+excluded=0
+total_ep=0
 for ds in "${DATASETS[@]}"; do
   src="$RAW_DATA_DIR/$ds"
-  dst="$STAGING_DIR/$ds"
   if [[ ! -d "$src" ]]; then
     echo "  [THIẾU] $ds  (không có ở $src)" >&2
     missing=$((missing+1))
     continue
   fi
-  ln -sfn "$src" "$dst"
-  n=$(find -L "$dst" -maxdepth 1 -type d -iname "episode*" | wc -l)
+  # Tạo thư mục task thật, symlink từng episode (bỏ episode bị loại).
+  dst="$STAGING_DIR/$ds"
+  mkdir -p "$dst"
+  n=0
+  while IFS= read -r ep; do
+    epname="$(basename "$ep")"
+    if is_excluded "$ds/$epname"; then
+      excluded=$((excluded+1))
+      continue
+    fi
+    ln -sfn "$ep" "$dst/$epname"
+    n=$((n+1))
+  done < <(find "$src" -maxdepth 1 -type d -iname "episode*" | sort)
+  total_ep=$((total_ep+n))
   echo "  [OK]    $ds -> $n episode"
 done
 
 echo
-echo "==> Staging xong tại: $STAGING_DIR"
+echo "==> Staging xong tại: $STAGING_DIR ($total_ep episode dùng được, $excluded episode bị loại)"
 if [[ "$missing" -gt 0 ]]; then
   echo "CẢNH BÁO: $missing bộ bị thiếu — kiểm tra lại DATASETS trong config.env." >&2
   exit 2

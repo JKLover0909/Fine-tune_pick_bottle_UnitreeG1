@@ -3,6 +3,20 @@
 Tất cả script nằm ở `scripts/`, đọc cấu hình chung từ `config.env`. Mọi bước nặng chạy trong conda env
 `tv` (đã cài lerobot 0.4.1 + torch 2.3.0). ACT train **hoàn toàn local** trên card 16GB — không cần cloud.
 
+## Bẫy môi trường đã gặp (đã xử trong scaffold)
+
+Chạy convert/train một lần thực tế (2026-09-15) lộ ra 3 bẫy, đều liên quan version torch 2.3.0 của env `tv`:
+
+1. **`torchvision` ở user site-packages (`~/.local`) lệch version** → lỗi
+   `module 'torch.library' has no attribute 'register_fake'` khi import. Khắc phục: `config.env` đặt
+   `export PYTHONNOUSERSITE=1` (bẫy này cũng ghi trong `xr_teleoperate/Useme.md`).
+2. **`torchcodec` (backend decode video mặc định) không tương thích torch 2.3.0** (cùng lỗi
+   `register_fake`). Khắc phục: `02_train_act.sh` truyền `--dataset.video_backend=pyav` (env có `av 16.1.0`).
+3. **Process convert treo sau khi ghi xong** (multiprocessing không join). Dataset vẫn hợp lệ; chỉ cần
+   `pkill -9 -f convert_unitree_json_to_lerobot` sau khi `meta/info.json` đã có đủ `total_episodes`.
+
+Tốc độ train đo được: **~0.20s/step @ batch 8** (data loading không phải nút thắt). 50k step ≈ 2-3 giờ.
+
 ## Đường chính: ACT (local)
 
 ```bash
