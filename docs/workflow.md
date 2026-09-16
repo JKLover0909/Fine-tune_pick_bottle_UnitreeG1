@@ -37,10 +37,19 @@ ACT_BATCH_SIZE=8 ACT_STEPS=100000 scripts/02_train_act.sh
 # 5a. Đẩy checkpoint lên HF Hub (private) + dọn đĩa
 scripts/push_checkpoint_to_hub.sh outputs/act_pick_bottle/checkpoints/<step>/pretrained_model --delete-local
 
-# 5b. Eval trên robot thật (mặc định KHÔNG gửi lệnh ra robot)
+# 5b. Kiểm tra policy OFFLINE (không cần robot) — so action dự đoán vs demo, xuất metrics + plot
+scripts/04_infer_offline.sh                          # checkpoint 50k, episode 0
+scripts/04_infer_offline.sh <checkpoint> <episode>   # tuỳ chọn khác
+
+# 5c. Eval trên robot thật (mặc định KHÔNG gửi lệnh ra robot)
 scripts/03_eval_g1.sh outputs/act_pick_bottle/checkpoints/<step>/pretrained_model
 SEND_REAL=true scripts/03_eval_g1.sh <checkpoint>   # chỉ khi đã an toàn + trực e-stop
 ```
+
+`04_infer_offline.sh` bọc `unitree_lerobot/eval_robot/offline_infer_dataset.py` (đã sửa thêm cờ
+`--video-backend`, mặc định `pyav`, để tránh lỗi torchcodec với torch 2.3.0). Kết quả ở
+`outputs/offline_infer/latest/` (metrics_summary.json, metrics_by_dim.csv, plots/, predictions.npz).
+Đây chỉ đo độ khớp demo (open-loop) — success rate thật vẫn phải eval closed-loop trên robot (5c).
 
 Mỗi script `.sh` đều có `--dry-run` để in lệnh mà không thực thi — dùng để kiểm tra trước.
 
